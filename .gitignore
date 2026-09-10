@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+# 生成データ・実行結果（再生成可能・環境依存）
+tests/data/in/
+tests/data/out*/
+*.log
+# 実在の秘密・分割・rarはコミットしない
+passwords.txt
+dict.txt
+*.7z
+*.7z.*
+*.rar
+!tests/data/.gitkeep

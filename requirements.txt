@@ -1,0 +1,7 @@
+# 必須は標準ライブラリのみ（zipfile/tarfile/gzip/bz2/lzma）
+# 以下は任意: --prefer-7z 等で7z.exe無し環境用に有効
+py7zr>=0.22.0
+rarfile>=4.1
+tqdm>=4.66.0
+# 開発
+pytest>=7.0

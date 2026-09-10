@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repack-tool"
+version = "0.1.0"
+description = "圧縮ファイル解凍→フォルダ毎Zip再圧縮ツール"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+# py7zr は .7z を7z.exe無しで扱う場合に必要
+full = ["py7zr>=0.22.0", "rarfile>=4.1", "tqdm>=4.66.0"]
+test = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
