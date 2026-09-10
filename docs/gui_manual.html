@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>repack-tool GUI 利用マニュアル</title>
+<style>
+  :root { --ac:#1a5fb4; --bg:#f6f8fa; --line:#d0d7de; }
+  * { box-sizing:border-box; }
+  body { font-family:"Meiryo","Yu Gothic UI",system-ui,sans-serif; margin:0; color:#1f2328; background:#fff; line-height:1.75; }
+  header { background:linear-gradient(135deg,#1a5fb4,#3d7fd9); color:#fff; padding:28px 40px; }
+  header h1 { margin:0 0 6px; font-size:26px; }
+  header p { margin:0; opacity:.92; }
+  main { max-width:900px; margin:0 auto; padding:24px 40px 60px; }
+  nav { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:14px 22px; margin:20px 0 32px; }
+  nav b { color:var(--ac); }
+  nav ol { margin:8px 0 0; padding-left:22px; }
+  nav a { color:var(--ac); text-decoration:none; }
+  nav a:hover { text-decoration:underline; }
+  h2 { border-bottom:2px solid var(--ac); color:var(--ac); padding-bottom:6px; margin-top:48px; font-size:21px; }
+  h2 .no { background:var(--ac); color:#fff; border-radius:6px; padding:2px 10px; margin-right:10px; font-size:16px; vertical-align:2px; }
+  h3 { color:#24292f; border-left:5px solid var(--ac); padding-left:10px; font-size:16px; margin-top:28px; }
+  table { border-collapse:collapse; width:100%; margin:12px 0; font-size:14px; }
+  th,td { border:1px solid var(--line); padding:7px 11px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); white-space:nowrap; }
+  tr:nth-child(even) td { background:#fbfcfd; }
+  code, kbd { background:#eff1f3; border-radius:4px; padding:1px 6px; font-family:Consolas,monospace; font-size:.92em; }
+  figure { margin:18px 0 26px; text-align:center; }
+  figure img { max-width:100%; border:1px solid var(--line); border-radius:8px; box-shadow:0 3px 10px rgba(0,0,0,.13); }
+  figcaption { color:#57606a; font-size:13px; margin-top:8px; }
+  figure.dlg img { max-width:280px; }
+  .step { display:flex; gap:14px; margin:20px 0; }
+  .step .num { flex:0 0 34px; height:34px; background:var(--ac); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; }
+  .step > div { flex:1; }
+  .note { border-left:5px solid #d4a72c; background:#fff8e1; padding:10px 16px; border-radius:0 6px 6px 0; margin:14px 0; font-size:14px; }
+  .tip  { border-left:5px solid #1a7f37; background:#eaf6ec; padding:10px 16px; border-radius:0 6px 6px 0; margin:14px 0; font-size:14px; }
+  .warn { border-left:5px solid #cf222e; background:#fff1f2; padding:10px 16px; border-radius:0 6px 6px 0; margin:14px 0; font-size:14px; }
+  .ok   { color:#1a7f37; font-weight:bold; }
+  .skip { color:#9a6700; font-weight:bold; }
+  .err  { color:#cf222e; font-weight:bold; }
+  footer { border-top:1px solid var(--line); color:#57606a; text-align:center; padding:18px; font-size:13px; margin-top:56px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>repack-tool GUI 利用マニュアル</h1>
+  <p>圧縮ファイル（7z / zip / rar / tar.gz など）を一括解凍し、フォルダ単位で zip に再圧縮するツール</p>
+</header>
+<main>
+
+<nav>
+  <b>目次</b>
+  <ol>
+    <li><a href="#sec1">本マニュアルについて</a></li>
+    <li><a href="#sec2">起動方法</a></li>
+    <li><a href="#sec3">画面の見方</a></li>
+    <li><a href="#sec4">基本の使い方（5 ステップ）</a></li>
+    <li><a href="#sec5">オプション詳細</a></li>
+    <li><a href="#sec6">実行結果の読み方</a></li>
+    <li><a href="#sec7">よくある質問（FAQ）</a></li>
+    <li><a href="#sec8">トラブルシューティング</a></li>
+  </ol>
+</nav>
+
+<h2 id="sec1"><span class="no">1</span>本マニュアルについて</h2>
+<p>本マニュアルでは、repack-tool の GUI（グラフィカル画面）での操作方法を説明します。<br>
+コマンドプロンプトが苦手な方でも、画面の操作だけで「圧縮ファイルの解凍 → フォルダ毎の zip 化」が行えます。</p>
+<table>
+  <tr><th>対象</th><th>repack-tool GUI（本マニュアルは 2026/09 時点のバージョンに基づく）</th></tr>
+  <tr><th>動作環境</th><th>Windows 10/11 + Python 3.10 以降（開発・検証は Python 3.12）</th></tr>
+  <tr><th>対応形式</th><th>7z / zip / rar / tar.gz・tgz / tar.bz2 / tar.xz / gz / bz2 / xz（分割ファイル含む）</th></tr>
+</table>
+
+<h2 id="sec2"><span class="no">2</span>起動方法</h2>
+<p>コマンドプロンプトまたは PowerShell で、プロジェクトのフォルダ（<code>MyTools</code>）に移動して次のコマンドを実行します。</p>
+<pre><code>cd C:\Dドライブ\AI_Models\MyTools
+$env:PYTHONPATH = "src"
+python -m repack_tool.gui</code></pre>
+<div class="tip">💡 頻繁に使う場合は、上の内容を書いた <code>start_gui.bat</code> を作成し、ダブルクリックで起動すると便利です。</div>
+
+<h2 id="sec3"><span class="no">3</span>画面の見方</h2>
+<p>起動すると次の画面が表示されます。大きく分けて「<b>入力エリア</b>」「<b>オプション</b>」「<b>実行ボタン</b>」「<b>ログ</b>」の 4 つの要素があります。</p>
+<figure>
+  <img src="img/01_startup.png" alt="起動直後の画面" width="680">
+  <figcaption>図1　起動直後の画面（初期状態）</figcaption>
+</figure>
+<table>
+  <tr><th style="width:18%">領域</th><th>説明</th></tr>
+  <tr><td>入力フォルダ</td><td>解凍したい圧縮ファイルが保存されているフォルダを指定します。<b>「参照」ボタン</b>で選択するか、エクスプローラから<b>ドラッグ&amp;ドロップ</b>もできます。</td></tr>
+  <tr><td>出力フォルダ</td><td>作成した zip を保存するフォルダを指定します。入力フォルダと同じでも構いません（自動的に二重処理は行われません）。</td></tr>
+  <tr><td>辞書（任意）</td><td>パスワード付き圧縮ファイルを解凍する場合の、パスワード一覧ファイル（テキスト・1 行 1 件）を指定します。不要な場合は空のままで OK です。</td></tr>
+  <tr><td>オプション</td><td>処理内容を細かく制御します（詳細は「5. オプション詳細」）。初期状態のままで問題ありません。</td></tr>
+  <tr><td>実行 / 中止</td><td><b>実行</b>で処理を開始します。処理中は進捗が<b>プログレスバー</b>と<b>ログ</b>に表示されます。</td></tr>
+  <tr><td>ログ</td><td>処理の経過・結果・エラーが表示されます。内容は出力フォルダの <code>repack_日付_時刻.log</code> にも保存されます。</td></tr>
+</table>
+<h2 id="sec4"><span class="no">4</span>基本の使い方（5 ステップ）</h2>
+
+<div class="step"><div class="num">1</div><div>
+<h3>入力フォルダを指定する</h3>
+<p>「入力フォルダ」の<b>参照</b>ボタンを押して、圧縮ファイルが入ったフォルダを選びます。<br>
+サブフォルダの中まで探したい場合は、オプションの「<b>再帰探索</b>」にチェックを入れます（初期状態で ON）。</p>
+</div></div>
+
+<div class="step"><div class="num">2</div><div>
+<h3>出力フォルダを指定する</h3>
+<p>「出力フォルダ」の<b>参照</b>ボタンで、zip の保存先を指定します。<br>
+入力のフォルダ構造がそのまま再現されるため、整理された形で出力されます。</p>
+</div></div>
+
+<div class="step"><div class="num">3</div><div>
+<h3>（必要なら）辞書ファイルを指定する</h3>
+<p>パスワード付きの圧縮ファイルを扱うときだけ、パスワードを 1 行ずつ並べたテキストファイルを指定します。<br>
+辞書内のパスワードを順に試行し、成功したものだけ解凍します。<b>パスワードがログに出ることはありません。</b></p>
+<div class="note">📝 対応している暗号化方式は ZipCrypto（zip）と 7z の標準暗号化です。AES-256 の zip は「7z優先」オプション＋7-Zip がインストールされた環境で解凍できます。</div>
+</div></div>
+
+<div class="step"><div class="num">4</div><div>
+<h3>「実行」ボタンで処理を開始する</h3>
+<p>入力が済んだら<b>実行</b>を押します。ボタンが押せない状態になり、「中止」が押せる状態に変わります。<br>
+進捗バーが伸び、ログに処理対象のファイル名と結果が流れていきます。</p>
+<figure>
+  <img src="img/02_configured.png" alt="入力を指定した画面" width="680">
+  <figcaption>図2　フォルダと辞書を指定した状態</figcaption>
+</figure>
+<figure>
+  <img src="img/run_01.png" alt="実行中の画面" width="680">
+  <figcaption>図3　実行中の画面（プログレスバーとログが進行）</figcaption>
+</figure>
+</div></div>
+
+<div class="step"><div class="num">5</div><div>
+<h3>完了ダイアログを確認する</h3>
+<p>全件の処理が終わると「完了」ダイアログに<b>終了コード</b>が表示されます。</p>
+<figure class="dlg">
+  <img src="img/05_done_dialog.png" alt="完了ダイアログ">
+  <figcaption>図4　完了ダイアログ（終了コード 2 = 一部スキップあり）</figcaption>
+</figure>
+<table>
+  <tr><th>終了コード</th><th>意味</th><th>対応</th></tr>
+  <tr><td class="ok">0</td><td>全件成功（スキップ・失敗なし）</td><td>そのまま出力をご利用ください</td></tr>
+  <tr><td class="skip">2</td><td>処理完了（ただしスキップしたファイルあり）</td><td>ログの「スキップ一覧」で理由を確認してください</td></tr>
+  <tr><td class="err">1</td><td>致命的エラー（入力フォルダ未指定・入力＝出力の指定など）</td><td>ログの [ERROR] 行を確認し、設定を見直してください</td></tr>
+</table>
+</div></div>
+
+<h2 id="sec5"><span class="no">5</span>オプション詳細</h2>
+<table>
+  <tr><th>オプション</th><th>既定</th><th>説明</th></tr>
+  <tr><td>再帰探索</td><td>ON</td><td>入力フォルダ配下のサブフォルダも含めて圧縮ファイルを探します。OFF にすると入力フォルダ直下だけを対象にします。</td></tr>
+  <tr><td>7z優先</td><td>OFF</td><td>7-Zip（7z.exe）がインストールされていれば、全形式の解凍を 7-Zip に任せます。rar や AES-zip など Python ライブラリが苦手な形式を確実に扱えます。</td></tr>
+  <tr><td>平坦出力</td><td>OFF</td><td>ON にすると、サブフォルダの結果もすべて出力フォルダ直下にまとめます（フォルダ構造を再現しません）。</td></tr>
+  <tr><td>DRY-RUN</td><td>OFF</td><td>実際には何も作成せず「何が行われるか」をログで確認するテスト実行です。初めてのフォルダでまず確認したいときに。</td></tr>
+  <tr><td>一時保持</td><td>OFF</td><td>解凍作業用の一時フォルダを処理後も削除せず残します（通常は OFF のままで OK。トラブル調査用）。</td></tr>
+  <tr><td>圧縮レベル</td><td>9</td><td>0（無圧縮・最速）〜 9（最高圧縮・低速）。画像など既に圧縮済みのデータが多い場合は 3〜5 に下げると速くなります。</td></tr>
+  <tr><td>ログレベル</td><td>INFO</td><td>DEBUG にすると除外ファイルの理由など詳細も表示します。</td></tr>
+</table>
+
+<h2 id="sec6"><span class="no">6</span>実行結果の読み方</h2>
+<p>処理が完了すると、ログの末尾に<b>出力一覧</b>・<b>スキップ一覧</b>・<b>終了コード</b>が表示されます。</p>
+<figure>
+  <img src="img/run_03.png" alt="完了後のログ" width="680">
+  <figcaption>図5　処理完了後のログ（出力一覧 → スキップ一覧 → 終了コード）</figcaption>
+</figure>
+
+<h3>6.1 出力のルール</h3>
+<table>
+  <tr><th>圧縮ファイルの中身</th><th>出力</th></tr>
+  <tr><td>フォルダ 1 つだけ</td><td>そのフォルダ名の zip（例: <code>Top/</code> → <code>Top.zip</code>）</td></tr>
+  <tr><td>フォルダが複数</td><td>フォルダ毎に個別の zip（例: <code>A/</code> と <code>B/</code> → <code>A.zip</code> と <code>B.zip</code>）</td></tr>
+  <tr><td>フォルダ＋ファイルが混在</td><td>フォルダ毎の zip ＋ ファイル群を 1 つにまとめた <code>元名_files.zip</code></td></tr>
+  <tr><td>ファイルのみ</td><td><code>元アーカイブ名_files.zip</code> として 1 本にまとめる</td></tr>
+  <tr><td>空フォルダのみ</td><td>出力しない（スキップ）</td></tr>
+  <tr><td>同じ名前の zip が既にある</td><td>上書きせず <code>名前_001.zip</code> のように連番で保存</td></tr>
+</table>
+<div class="tip">💡 元の圧縮ファイル（7z など）は<b>削除されません</b>。確認後、必要に応じて手動で整理してください。</div>
+
+<h3>6.2 スキップの理由</h3>
+<table>
+  <tr><th>ログの表示</th><th>意味</th><th>対処</th></tr>
+  <tr><td><code>empty-folder</code></td><td>中身が空のフォルダだけだった</td><td>対応不要</td></tr>
+  <tr><td><code>password-mismatch</code></td><td>辞書のどのパスワードでも解けなかった</td><td>正しいパスワードを辞書に追記して再実行</td></tr>
+  <tr><td><code>missing-part</code></td><td>分割ファイル（.001/.002…）の一部が無い</td><td>全ての巻を同じフォルダに揃えて再実行</td></tr>
+  <tr><td><code>corrupt</code></td><td>ファイルが壊れている</td><td>配布元から取り直す。7-Zip で開けるか個別に確認</td></tr>
+</table>
+
+<h3>6.3 「機密情報を含む可能性がある名前を検出」と表示されたら</h3>
+<p>フォルダ名やファイル名に <code>password</code> / <code>secret</code> / <code>個人情報</code> / <code>マイナンバー</code> などが含まれる場合、取り扱い注意を促す <span class="skip">[WARN]</span> が表示されます。<b>処理は継続されます</b>が、出力先の取り扱いに注意してください。内容を確認して問題がなければそのままお使いいただけます。</p>
+<h2 id="sec7"><span class="no">7</span>よくある質問（FAQ）</h2>
+<table>
+  <tr><th style="width:42%">質問</th><th>回答</th></tr>
+  <tr><td>ドラッグ&amp;ドロップができない</td><td>Windows 標準の tkinter には DnD 機能がありません。「参照」ボタンから選択するか、拡張ライブラリ <code>tkinterdnd2</code> をインストールしてください（<code>pip install tkinterdnd2</code>。インストールすると自動で有効化されます）。</td></tr>
+  <tr><td>「中止」を押しても止まらない</td><td>仕様です。1 件ずつ確実に処理する設計のため、実行中のファイルが終わるまで中断されません。誤操作防止のため、実行前に <b>DRY-RUN</b> で確認することをおすすめします。</td></tr>
+  <tr><td>rar が「スキップ」になる</td><td>rar の解凍には 7-Zip が必要です。<a href="https://sevenzip.osdn.jp/" target="_blank" rel="noopener">7-Zip</a> をインストールし、オプションの「<b>7z優先</b>」を ON にして再実行してください。</td></tr>
+  <tr><td>zip なのにパスワードが合っても解凍できない</td><td>AES-256 暗号化の zip は Python 標準では扱えません。「7z優先」を ON にして再実行してください。</td></tr>
+  <tr><td>出力された zip はどこ？</td><td>出力フォルダに、入力のフォルダ構造ごと保存されます。場所はログの <code>output:</code> 行で確認できます。</td></tr>
+  <tr><td>実行した内容を後から見たい</td><td>出力フォルダに <code>repack_日付_時刻.log</code> として保存されます。画面を閉じても履歴を確認できます。</td></tr>
+  <tr><td>大量のファイルで時間がかかる</td><td>圧縮レベル 9 は最も時間がかかります。速度優先なら 3〜5 に下げてください。</td></tr>
+</table>
+
+<h2 id="sec8"><span class="no">8</span>トラブルシューティング</h2>
+<table>
+  <tr><th>症状</th><th>原因と対処</th></tr>
+  <tr><td><code>ModuleNotFoundError: No module named 'repack_tool'</code></td><td>プロジェクトのフォルダに移動していないか、<code>PYTHONPATH</code> が未設定です。「2. 起動方法」のコマンドを確認してください。</td></tr>
+  <tr><td>入力フォルダを指定して実行すると即エラー（終了コード 1）</td><td>入力フォルダのパスが存在しない、または入力＝出力に同一フォルダを指定した可能性があります。ログの [ERROR] 行を確認してください。</td></tr>
+  <tr><td>圧縮ファイルが 1 件も見つからない（対象 0 件）</td><td>拡張子が対応形式外、または「再帰探索」が OFF でサブフォルダ内を見ていない可能性があります。ログレベルを DEBUG にすると走査の様子がわかります。</td></tr>
+  <tr><td>画面が真っ白で固まるように見える</td><td>処理中は UI の描画が最小限になります。進捗バーとログが動いていれば正常です。</td></tr>
+  <tr><td>文字化けしたファイル名で解凍される</td><td>圧縮ファイル内の文字コードに起因する稀なケースです。UTF-8 非対応の古い zip で発生しやすいため、「7z優先」での再実行をお試しください。</td></tr>
+</table>
+
+<div class="warn">⚠️ 出力 zip は暗号化されません。機微情報を含むファイルを扱う場合は、出力先フォルダのアクセス権限に注意してください。</div>
+
+<footer>repack-tool GUI 利用マニュアル　—　2026/09 版　|　snapshots: docs/img/　|　CLI の詳細は README.md を参照</footer>
+
+</main>
+</body>
+</html>
