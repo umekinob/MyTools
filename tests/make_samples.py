@@ -80,12 +80,22 @@ def _run_7z(seven: Path, args) -> bool:
 
 
 def main(clean: bool = True) -> dict:
+    keep = DATA_ROOT / ".gitkeep"
+    keep_bytes = keep.read_bytes() if keep.exists() else None
     if clean and DATA_ROOT.exists():
         shutil.rmtree(DATA_ROOT)
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    if keep_bytes is not None:
+        keep.write_bytes(keep_bytes)
     IN.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
     seven = find_7z()
     results = {}
+
+    # パスワード辞書（T07用。T08は辞書外のパスワードで暗号化済み → mismatch）
+    (DATA_ROOT / "dict.txt").write_text(
+        "# テスト用パスワード辞書（ダミー。実パスワードを置かないこと）\nsecret\n",
+        encoding="utf-8")
 
     # T01: 単一フォルダ
     _write_zip(IN / "T01_single.zip",

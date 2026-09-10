@@ -79,6 +79,13 @@ python tests/test_paths.py
 python tests/test_integration.py
 ```
 
+### 検証レポート（自動生成）
+
+`python tests/make_report.py` でサンプル生成→E2E→単体テストを一括実行し、
+`result/result_yyyymmdd.html`（同日複数回は `result_yyyymmdd_01.html` の連番）に
+HTMLレポートを保存します。内容: 総合PASS/FAIL、コミット情報、E2Eチェック詳細、
+単体テスト結果、T01〜T22対応表、実行ログ（パスワード非出力）。
+
 ## GUI（後付け・実装済み）
 
 CLI/Core を import する薄ラッパー（tkinter）。GUI相当の全設定＋プログレスバー。

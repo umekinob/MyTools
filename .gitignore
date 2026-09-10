@@ -4,6 +4,7 @@ __pycache__/
 # 生成データ・実行結果（再生成可能・環境依存）
 tests/data/in/
 tests/data/out*/
+result/
 *.log
 # 実在の秘密・分割・rarはコミットしない
 passwords.txt
