@@ -60,7 +60,7 @@ def classify(top_dir: Path, config: Config, logger: ProgressLogger) -> ClassifyR
             continue
         if any(k in name.lower() for k in SUSPICIOUS_KEYWORDS):
             result.suspicious.append(name)
-            logger.warning("機密ワーニング(名前): %s", name)
+            logger.warning("機密情報を含む可能性がある名前を検出: %s", name)
         if entry.is_dir():
             result.dirs.append(entry)
         else:
