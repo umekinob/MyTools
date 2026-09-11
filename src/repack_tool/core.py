@@ -1,14 +1,19 @@
 """Core: 全体オーケストレーション（設計書 5.1）。CLI/GUI双方から呼ばれる。"""
 from __future__ import annotations
 
+import io
+import re
 import shutil
+import subprocess
+import tarfile
 import tempfile
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Set
 
 from .checker import check_archive
-from .classifier import classify
+from .classifier import classify, ClassifyResult
 from .config import Config
 from .extractor import Extractor
 from .passwords import PasswordList
@@ -72,11 +77,7 @@ def run(config: Config, logger: ProgressLogger,
     result.total = len(items)
     logger.set_total(len(items))
     if config.dry_run:
-        logger.info("DRY-RUN: 解凍・書込は行いません")
-        for it in items:
-            logger.info("  対象: %s (%s)", it.path, it.kind)
-        logger.info("summary: total=%s (dry-run)", len(items))
-        return 0
+        return _dry_run_list(items, config, logger, input_dir, output_dir)
 
     extractor = Extractor(config, logger)
     used_names: set = set()
@@ -96,6 +97,133 @@ def run(config: Config, logger: ProgressLogger,
 
     _summary(logger, result)
     return 2 if (result.skipped > 0 or result.failed > 0) else 0
+
+
+def _dry_run_list(items: List[ArchiveItem], config: Config,
+                  logger: ProgressLogger, input_dir: Path,
+                  output_dir: Path) -> int:
+    """dry-run: 解凍せずアーカイブ内ファイル一覧から作成予定zipを推定表示（方針B）。"""
+    logger.info("DRY-RUN（軽量）: 解凍せずに作成予定zipを推定します")
+    total_zips: List[Path] = []
+    for it in items:
+        names = _list_archive_names(it.path, it.kind, config)
+        if names is None:
+            logger.warning("  対象: %s (%s) - ファイル一覧を取得できません", it.path, it.kind)
+            continue
+        zips = _estimate_zips(it, names, config, output_dir, input_dir)
+        if zips:
+            logger.info("  対象: %s (%s)", it.path, it.kind)
+            for z in zips:
+                logger.info("    -> %s", z)
+                total_zips.append(z)
+        else:
+            logger.info("  対象: %s (%s) - 作成可能なzipなし", it.path, it.kind)
+    logger.info("summary: 対象=%s 作成予定zip=%s (dry-run)", len(items), len(total_zips))
+    return 0
+
+
+def _list_archive_names(path: Path, kind: Optional[str],
+                        config: Config) -> Optional[List[str]]:
+    """アーカイブ内のファイル名一覧を取得（解凍せず）。取得不能時はNone。"""
+    try:
+        if kind == "zip":
+            with zipfile.ZipFile(path) as zf:
+                return zf.namelist()
+        elif kind in ("tar", "tar.gz", "tar.bz2", "tar.xz", "tgz", "tbz2", "txz"):
+            mode = "r:gz" if kind in ("tar.gz", "tgz") else \
+                   "r:bz2" if kind in ("tar.bz2", "tbz2") else \
+                   "r:xz" if kind in ("tar.xz", "txz") else "r:"
+            with tarfile.open(path, mode) as tf:
+                return tf.getnames()
+        elif kind in ("7z", "rar"):
+            return _list_7z_names(path, config)
+        elif kind in ("gz", "bz2", "xz"):
+            # 単体圧縮はファイル1つなのでアーカイブ名と同じ名前
+            stem = archive_stem(path)
+            return [stem]
+    except Exception as exc:  # noqa: BLE001
+        logger = ProgressLogger()
+        logger.debug("ファイル一覧取得失敗: %s (%s)", path, exc)
+    return None
+
+
+def _list_7z_names(path: Path, config: Config) -> Optional[List[str]]:
+    """7z.exe でファイル一覧を取得（解凍せず）。"""
+    seven = config.seven_zip_path or "7z.exe"
+    try:
+        proc = subprocess.run(
+            [seven, "l", "-slt", "-bd", "-y", str(path)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30)
+        if proc.returncode != 0:
+            return None
+        names: List[str] = []
+        for line in proc.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("Path = "):
+                names.append(line[7:])
+        return names if names else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _estimate_zips(it: ArchiveItem, names: List[str], config: Config,
+                   output_dir: Path, input_dir: Path) -> List[Path]:
+    """ファイル名一覧から作成予定zipパスを推定。ディレクトリは作成しない。"""
+    classify_result = _classify_from_names(names, config)
+    if classify_result.is_empty:
+        return []
+    target_dir = _output_target(it, config, output_dir, input_dir)
+    zips: List[Path] = []
+    used: Set[str] = set()
+    for d in classify_result.dirs:
+        name = folder_zip_name(d.name)
+        zips.append(_unique_path(target_dir, name, used))
+    if classify_result.files:
+        name = group_zip_name(it.path)
+        zips.append(_unique_path(target_dir, name, used))
+    return zips
+
+
+def _unique_path(target_dir: Path, desired: str, used: Set[str]) -> Path:
+    """同名があれば _001, _002... を付けて別名を返す（ディレクトリは作成しない）。"""
+    base = desired
+    if desired.lower().endswith(".zip"):
+        base = desired[:-4]
+    candidate = target_dir / f"{base}.zip"
+    n = 1
+    key = str(candidate).lower()
+    while key in used:
+        candidate = target_dir / f"{base}_{n:03d}.zip"
+        key = str(candidate).lower()
+        n += 1
+    used.add(key)
+    return candidate
+
+
+def _classify_from_names(names: List[str],
+                         config: Config) -> "ClassifyResult":
+    """ファイル名一覧からトップレベル分類をシミュレート。"""
+    result = ClassifyResult()
+    top_entries: dict = {}  # name -> is_dir
+    for n in names:
+        parts = n.replace("\\", "/").split("/")
+        if len(parts) < 1:
+            continue
+        top = parts[0]
+        if top.startswith("."):
+            continue
+        if top.lower() in {e.lower() for e in config.exclude_names}:
+            continue
+        is_dir = len(parts) > 1 or n.endswith("/")
+        if top not in top_entries:
+            top_entries[top] = is_dir
+    for name, is_dir in sorted(top_entries.items(), key=lambda x: x[0].lower()):
+        if is_dir:
+            result.dirs.append(Path(name))
+        else:
+            result.files.append(Path(name))
+    return result
 
 
 def _process_item(it: ArchiveItem, config: Config, logger: ProgressLogger,
