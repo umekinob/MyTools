@@ -4,12 +4,18 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .config import Config
-from .paths import long_path
+from .names import normalize_tree, recover_name
+from .paths import is_safe_entry, long_path
 from .progress import ProgressLogger
+
+
+def _pw_reason(passwords: List[str]) -> str:
+    return "password-required" if not passwords else "password-mismatch"
 
 _DEFAULT_7Z_PATHS = [
     Path(r"C:\Program Files\7-Zip\7z.exe"),
@@ -77,18 +83,24 @@ def _try_lib_extract(archive: Path, kind: str, dest: Path, password: Optional[st
     """Python標準libでの解凍を試みる。(成功, エラー種別) を返す。"""
     try:
         if kind == "zip":
-            import zipfile
-            _warn_unsafe_zip_entries(archive, logger)
-            pwd = password.encode("utf-8") if password is not None else None
-            with zipfile.ZipFile(archive) as zf:
-                zf.extractall(dest, pwd=pwd)
-            return (True, "")
+            for pw_b in _password_bytes(password):
+                try:
+                    _extract_zip_safe(archive, dest, pw_b, logger)
+                except Exception as exc:  # noqa: BLE001
+                    msg = str(exc).lower()
+                    if "password" in msg or "encrypted" in msg or isinstance(exc, RuntimeError):
+                        continue  # 次の符号化候補へ（日本語PWのutf-8/cp932両対応）
+                    raise
+                normalize_tree(dest, logger)
+                return (True, "")
+            return (False, "password")
         if kind in ("tar_gz", "tgz", "tar_bz2", "tbz2", "tar_xz", "txz"):
             import tarfile
             mode = {"tar_gz": "r:gz", "tgz": "r:gz", "tar_bz2": "r:bz2",
                     "tbz2": "r:bz2", "tar_xz": "r:xz", "txz": "r:xz"}[kind]
             with tarfile.open(archive, mode) as tf:
                 tf.extractall(dest, filter="data")
+            normalize_tree(dest, logger)
             return (True, "")
         if kind in ("gz", "bz2", "xz"):
             return _extract_single(archive, kind, dest)
@@ -100,18 +112,63 @@ def _try_lib_extract(archive: Path, kind: str, dest: Path, password: Optional[st
     return (False, "unsupported")
 
 
-def _warn_unsafe_zip_entries(archive: Path, logger: Optional["ProgressLogger"]) -> None:
-    """Zip Slip対策の警告。危険エントリ名があればWARN（lib掲載のextractallが無害化する）。"""
+def _password_bytes(password: Optional[str]) -> list:
+    """試行するPWバイト列。日本語PWの符号化不一致に備え utf-8→cp932 の順で試す。"""
+    if password is None:
+        return [None]
+    out: list = []
+    for enc in ("utf-8", "cp932"):
+        try:
+            b = password.encode(enc)
+        except (UnicodeEncodeError, LookupError):
+            continue
+        if b not in out:
+            out.append(b)
+    return out or [None]
+
+
+def _utf8_flag(info) -> bool:
+    return bool(info.flag_bits & 0x800)
+
+
+def _extract_zip_safe(archive: Path, dest: Path, pw: Optional[bytes],
+                      logger: Optional["ProgressLogger"] = None) -> None:
+    """ZIPをエントリ単位で安全展開。UTF-8フラグなし名は文字化け復元して書く。"""
     import zipfile
-    try:
-        with zipfile.ZipFile(archive) as zf:
-            for info in zf.infolist():
-                n = info.filename
-                if n.startswith("/") or ".." in n.replace("\\", "/").split("/"):
+    with zipfile.ZipFile(archive) as zf:
+        for info in zf.infolist():
+            raw_name = info.filename
+            # 安全チェック（展開前）
+            if not is_safe_entry(raw_name) and not raw_name.endswith("/"):
+                if logger is not None:
+                    logger.warning("Zip Slip/危険パス検出(スキップ): %s", raw_name)
+                continue
+            name = raw_name
+            if not _utf8_flag(info):
+                fixed, _conf = recover_name(raw_name, strict=False)
+                if fixed != raw_name:
+                    name = fixed
                     if logger is not None:
-                        logger.warning("Zip Slip/危険パス検出(無害化): %s", n)
-    except Exception:  # noqa: BLE001
-        pass
+                        logger.warning("文字化け名を復元(zip): %s -> %s", raw_name, fixed)
+            # 安全チェック（復元後）
+            if not is_safe_entry(name) and not name.endswith("/"):
+                if logger is not None:
+                    logger.warning("Zip Slip/危険パス検出(スキップ): %s", name)
+                continue
+            target = (dest / Path(*name.replace("\\", "/").split("/"))).resolve() \
+                if name not in ("", "/") else dest
+            try:
+                target.relative_to(dest.resolve())
+            except ValueError:
+                if logger is not None:
+                    logger.warning("Zip Slip/危険パス検出(スキップ): %s", name)
+                continue
+            if info.is_dir() or name.endswith("/"):
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(info, pwd=pw) as src, open(long_path(target), "wb") as dst:
+                shutil.copyfileobj(src, dst)
 
 
 def _extract_single(archive: Path, kind: str, dest: Path) -> Tuple[bool, str]:
@@ -136,10 +193,16 @@ def _single_out_name(archive: Path) -> str:
         if name.lower().endswith(suffix):
             return name[: -len(suffix)]
     return name + ".out"
-def _try_7z_extract(seven: SevenZip, archive: Path, dest: Path, password: Optional[str]) -> bool:
+def _try_7z_extract(seven: SevenZip, archive: Path, dest: Path,
+                    password: Optional[str],
+                    logger: Optional["ProgressLogger"] = None) -> bool:
     if not seven.is_available:
         return False
-    return seven.extract(archive, dest, password)
+    ok = seven.extract(archive, dest, password)
+    if ok:
+        # 7z/rar経路（外部プロセス）でも化け名があれば正規化
+        normalize_tree(dest, logger)
+    return ok
 
 
 class Extractor:
@@ -158,7 +221,7 @@ class Extractor:
         candidates: List[Optional[str]] = [None] + list(passwords)
         if self.config.prefer_7z and self.seven.is_available:
             for pw in candidates:
-                if _try_7z_extract(self.seven, archive, dest, pw):
+                if _try_7z_extract(self.seven, archive, dest, pw, self.logger):
                     return (True, "ok", candidates.index(pw))
             return (False, _pw_reason(passwords), len(candidates))
         # lib優先
@@ -169,11 +232,7 @@ class Extractor:
             if err == "password":
                 continue  # 次の候補へ
             # 破損等: 7z.exeで再試行（フォールバック）
-            if self.seven.is_available and _try_7z_extract(self.seven, archive, dest, pw):
+            if self.seven.is_available and _try_7z_extract(self.seven, archive, dest, pw, self.logger):
                 return (True, "ok", candidates.index(pw))
             return (False, "corrupt", candidates.index(pw) + 1)
         return (False, _pw_reason(passwords), len(candidates))
-
-
-def _pw_reason(passwords: List[str]) -> str:
-    return "password-required" if not passwords else "password-mismatch"

@@ -9,6 +9,17 @@ from typing import Callable, Optional
 LEVELS = {"DEBUG": logging.DEBUG, "INFO": logging.INFO,
           "WARNING": logging.WARNING, "ERROR": logging.ERROR}
 
+# 化け名（cp437由来の非cp932文字等）をログ出力してもクラッシュしないよう、
+# コンソールのエラー処理を backslashreplace に緩和する（ファイル出力はUTF-8のまま）。
+try:
+    sys.stdout.reconfigure(errors="backslashreplace")
+except Exception:
+    pass
+try:
+    sys.stderr.reconfigure(errors="backslashreplace")
+except Exception:
+    pass
+
 
 class ProgressLogger:
     """コンソールとファイルの双方へ出力する薄いログラッパー。連番進捗も管理。

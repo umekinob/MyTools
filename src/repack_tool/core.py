@@ -130,7 +130,7 @@ def _process_item(it: ArchiveItem, config: Config, logger: ProgressLogger,
                                               list(pwlist))
         if not ok:
             # 分割先頭巻が解凍できないのは欠巻の可能性が高い（Q33）
-            if it.split_leader and reason == "corrupt":
+            if it.split_leader and it.split_volume and reason == "corrupt":
                 reason = "missing-part"
             skip_fail(result, logger, name, reason, f"tried={tried}")
             return

@@ -30,7 +30,7 @@ class TestIntegration(unittest.TestCase):
         logger.close_all()
         _logging.getLogger("repack_tool").handlers.clear()
 
-        # total=21, success>=17, 一部スキップのため 2 を期待
+        # total=22, success>=18, 一部スキップのため 2 を期待
         self.assertEqual(code, 2)
         expected = [
             dest / "T01_single" / "Top.zip",
@@ -46,6 +46,7 @@ class TestIntegration(unittest.TestCase):
             dest / "T15_slip" / "T15_slip_files.zip",
             dest / "T16_nested" / "Inner.zip",
             dest / "T17_dot" / "T17_dot_files.zip",
+            dest / "T23_legacy_jp" / "日本語フォルダ.zip",
         ]
         for p in expected:
             self.assertTrue(p.is_file(), f"欠落: {p}")
@@ -57,6 +58,10 @@ class TestIntegration(unittest.TestCase):
         # T17: 隠し・ドット除外 → visible のみ
         with zipfile.ZipFile(dest / "T17_dot" / "T17_dot_files.zip") as zf:
             self.assertEqual(zf.namelist(), ["visible.txt"])
+        # T23: 旧式日本語ZIPの文字化け復元 → 日本語名が復元されていること
+        with zipfile.ZipFile(dest / "T23_legacy_jp" / "日本語フォルダ.zip") as zf:
+            names = zf.namelist()
+            self.assertIn("日本語ファイル.txt", names, f"復元された名前が含まれるべき: {names}")
         # T05(空)/T08(PW)/T11(破損) は存在しないこと
         for bad in ["T05_empty", "T08_pw_bad", "T11_corrupt", "T10_split_missing"]:
             self.assertEqual(list((dest / bad).rglob("*.zip")), [],

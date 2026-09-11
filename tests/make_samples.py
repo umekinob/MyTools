@@ -79,6 +79,27 @@ def _run_7z(seven: Path, args) -> bool:
         return False
 
 
+def _write_legacy_jp_zip(zip_path: Path, entries: dict) -> None:
+    """旧式日本語ZIPを作成する（cp932名＋UTF-8フラグなし）。
+
+    ``ZipFile.open`` で書き込むことで、DEFLATE 圧縮と UTF-8 フラグオフを確実に反映する。
+    """
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        for name, data in entries.items():
+            # cp932 バイト列を復元してファイル名にする
+            raw = name.encode("cp932")
+            arcname = raw.decode("cp932")
+            zinfo = zipfile.ZipInfo(filename=arcname)
+            zinfo.compress_type = zipfile.ZIP_DEFLATED
+            # UTF-8 フラグを明示的にオフ（旧式互換）
+            zinfo.flag_bits &= ~0x800
+            # writestr は data が str の場合に内部で UTF-8 エンコードするため、
+            # バイト列に変換してから open で書き込む（DEFLATE 圧縮を確実に適用）
+            bdata = data.encode("utf-8") if isinstance(data, str) else data
+            with zf.open(zinfo, "w") as f:
+                f.write(bdata)
+
+
 def main(clean: bool = True) -> dict:
     keep = DATA_ROOT / ".gitkeep"
     keep_bytes = keep.read_bytes() if keep.exists() else None
@@ -173,6 +194,11 @@ def main(clean: bool = True) -> dict:
     sub = IN / "T14_sub"
     sub.mkdir(exist_ok=True)
     _write_zip(sub / "a.zip", {"Top/t.txt": "t"})
+
+    # T23: 旧式日本語ZIP（cp932名＋UTF-8フラグなし → 文字化け復元の検証）
+    _write_legacy_jp_zip(IN / "T23_legacy_jp.zip",
+                         {"日本語フォルダ/日本語ファイル.txt": "復元される内容",
+                          "資料/メモ.txt": "メモ内容"})
 
     results["seven_zip"] = str(seven) if seven else None
     return results
