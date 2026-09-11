@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -63,6 +64,8 @@ class ProgressLogger:
 
         self.current = 0
         self.total = 0
+        self._start_time: float = 0.0
+        self._item_times: list = []  # 各アイテムの処理時間履歴（移動平均用）
         self._bar = None
 
     def debug(self, msg: str, *args) -> None:
@@ -80,6 +83,8 @@ class ProgressLogger:
     def set_total(self, total: int) -> None:
         self.total = total
         self.current = 0
+        self._start_time = time.time()
+        self._item_times = []
         self.info("scan: 対象 %s 件", total)
         try:
             from tqdm import tqdm  # 任意依存
@@ -89,12 +94,39 @@ class ProgressLogger:
 
     def update(self, n: int = 1, message: str = "") -> None:
         self.current += n
+        now = time.time()
+        # 1件あたりの平均処理時間を計算（移動平均、直近5件）
+        if self.current > 0:
+            elapsed = now - self._start_time
+            avg_time = elapsed / self.current
+            self._item_times.append(avg_time)
+            if len(self._item_times) > 5:
+                self._item_times.pop(0)
+            # 移動平均で残り時間を推定
+            moving_avg = sum(self._item_times) / len(self._item_times)
+            remaining = max(0, moving_avg * (self.total - self.current))
+            pct = self.current * 100 // self.total if self.total > 0 else 0
+            eta_str = self._format_time(remaining)
+            elapsed_str = self._format_time(elapsed)
+            self.info("[%s/%s] %s%% 経過%s 残り%s %s",
+                      self.current, self.total, pct, elapsed_str, eta_str, message)
         if self._callback is not None and self.total:
             self._callback(self.current, self.total, message or "")
         if self._bar is not None:
             self._bar.update(n)
-        if message:
-            self.info("[%s/%s] %s", self.current, self.total, message)
+
+    @staticmethod
+    def _format_time(seconds: float) -> str:
+        """秒数を読みやすい形式に変換（12s / 1m30s / 2h15m）。"""
+        if seconds < 60:
+            return f"{int(seconds)}s"
+        elif seconds < 3600:
+            m, s = divmod(int(seconds), 60)
+            return f"{m}m{s}s"
+        else:
+            h, rem = divmod(int(seconds), 3600)
+            m, s = divmod(rem, 60)
+            return f"{h}h{m}m{s}s"
 
     def close(self) -> None:
         if self._bar is not None:
