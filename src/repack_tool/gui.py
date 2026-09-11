@@ -74,8 +74,12 @@ class GuiApp(tk.Tk):
         self.progress.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=8)
 
         # ---- ログビュー ----
-        self.log = tk.Text(self, height=16, state=tk.DISABLED)
-        self.log.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
+        log_frame = ttk.Frame(self)
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
+        self.log = tk.Text(log_frame, height=16, state=tk.DISABLED)
+        self.log.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        btn_clear = ttk.Button(log_frame, text="ログクリア", command=self._clear_log)
+        btn_clear.pack(side=tk.RIGHT, anchor=tk.N, padx=(8, 0))
 
         self._enable_dnd()
         self.after(100, self._pump)
@@ -123,6 +127,12 @@ class GuiApp(tk.Tk):
         self.log.configure(state=tk.NORMAL)
         self.log.insert(tk.END, text + "\n")
         self.log.see(tk.END)
+        self.log.configure(state=tk.DISABLED)
+
+    def _clear_log(self) -> None:
+        """GUIのログテキストをクリア（ログファイルはそのまま）。"""
+        self.log.configure(state=tk.NORMAL)
+        self.log.delete("1.0", tk.END)
         self.log.configure(state=tk.DISABLED)
 
     def _pump(self):
