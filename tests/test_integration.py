@@ -30,7 +30,7 @@ class TestIntegration(unittest.TestCase):
         logger.close_all()
         _logging.getLogger("repack_tool").handlers.clear()
 
-        # total=22, success>=18, 一部スキップのため 2 を期待
+        # total=26, success>=22, 一部スキップのため 2 を期待
         self.assertEqual(code, 2)
         expected = [
             dest / "T01_single" / "Top.zip",
@@ -47,6 +47,19 @@ class TestIntegration(unittest.TestCase):
             dest / "T16_nested" / "Inner.zip",
             dest / "T17_dot" / "T17_dot_files.zip",
             dest / "T23_legacy_jp" / "日本語フォルダ.zip",
+            # T24〜T27: 単一フォルダ降下（パターン2〜4）
+            dest / "T24_p2" / "S1.zip",
+            dest / "T24_p2" / "S2.zip",
+            dest / "T24_p2" / "S3.zip",
+            dest / "T25_p3" / "S1.zip",
+            dest / "T25_p3" / "S2.zip",
+            dest / "T25_p3" / "arch.zip",
+            dest / "T26_p4" / "S1.zip",
+            dest / "T26_p4" / "S2.zip",
+            dest / "T26_p4" / "S3.zip",
+            dest / "T27_p2p" / "S1.zip",
+            dest / "T27_p2p" / "S2.zip",
+            dest / "T27_p2p" / "フォルダ直下.zip",
         ]
         for p in expected:
             self.assertTrue(p.is_file(), f"欠落: {p}")
@@ -55,6 +68,12 @@ class TestIntegration(unittest.TestCase):
             self.assertEqual(sorted(zf.namelist()), ["f1.txt", "f2.jpg"])
         with zipfile.ZipFile(dest / "T06_jp" / "フォルダ 名前.zip") as zf:
             self.assertIn("日本語ファイル.txt", zf.namelist())
+        # T25: arch.zip は解凍されず元のまま保持されること
+        with zipfile.ZipFile(dest / "T25_p3" / "arch.zip") as zf:
+            self.assertEqual(sorted(zf.namelist()), ["ArchData/data.txt"])
+        # T27: 直下ファイル群は「フォルダ直下.zip」にまとまること
+        with zipfile.ZipFile(dest / "T27_p2p" / "フォルダ直下.zip") as zf:
+            self.assertEqual(zf.namelist(), ["top.txt"])
         # T17: 隠し・ドット除外 → visible のみ
         with zipfile.ZipFile(dest / "T17_dot" / "T17_dot_files.zip") as zf:
             self.assertEqual(zf.namelist(), ["visible.txt"])

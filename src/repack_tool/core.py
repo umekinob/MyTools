@@ -17,7 +17,7 @@ from .classifier import classify, ClassifyResult
 from .config import Config, DEFAULT_TEMP_DIR
 from .extractor import Extractor
 from .passwords import PasswordList
-from .paths import long_path, resolve_no_follow
+from .paths import long_path, resolve_no_follow, sanitize_name
 from .progress import ProgressLogger
 from .repacker import (archive_stem, create_group_zip, create_zip,
                        folder_zip_name, group_zip_name, unique_path)
@@ -238,6 +238,32 @@ def _make_temp_dir(config: Config, logger: ProgressLogger) -> Path:
     return Path(tempfile.mkdtemp(prefix="repack_", dir=str(root)))
 
 
+def _fold_single_dir(top: Path, config: Config,
+                     logger: ProgressLogger) -> Optional[Path]:
+    """単一フォルダのみが続く場合に1階層ずつ降下し、処理対象トップを返す。
+
+    パターン2/3/4（単一トップフォルダ内のフォルダ群をzip化する仕様）に対応。
+    降下対象でない（複数トップ/ファイル混在/ファイルのみ/空）場合は None を返す。
+    深さ上限は config.nested_depth を流用。
+    """
+    cur = top
+    depth = 0
+    while depth < config.nested_depth:
+        cr = classify(cur, config, logger)
+        if len(cr.dirs) != 1 or cr.files:
+            return None  # 複数トップ or ファイル混在 → 降下なし
+        single = cr.dirs[0]
+        inner = classify(single, config, logger)
+        if len(inner.dirs) == 1 and not inner.files:
+            cur = single          # 直下も単一フォルダのみ → さらに降下（パターン4）
+            depth += 1
+            continue
+        if inner.dirs:
+            return single         # 直下にフォルダ群がある → ここを処理対象に
+        return None               # 直下がファイルのみ or 空 → 降下しない（従来1zip）
+    return None
+
+
 def _process_item(it: ArchiveItem, config: Config, logger: ProgressLogger,
                   extractor: Extractor, pwlist: PasswordList,
                   output_dir: Path, input_dir: Path, result: RepackResult,
@@ -275,12 +301,15 @@ def _process_item(it: ArchiveItem, config: Config, logger: ProgressLogger,
             skip_fail(result, logger, name, reason, f"tried={tried}")
             return
 
-        # ---- 入れ子展開（Q38/Q49） ----
-        if config.nested_depth > 0:
+        # ---- 単一フォルダ降下判定（パターン2/2'/3/4） ----
+        fold_target = _fold_single_dir(tmp, config, logger)
+
+        # ---- 入れ子展開（Q38/Q49）: 降下時はスキップ（アーカイブ保持のため） ----
+        if fold_target is None and config.nested_depth > 0:
             _expand_nested(tmp, 1, config, logger, extractor, pwlist)
 
         # ---- 分類 ----
-        cr = classify(tmp, config, logger)
+        cr = classify(fold_target or tmp, config, logger)
         if cr.is_empty:
             skip_fail(result, logger, name, "empty", "解凍結果が空")
             return
@@ -304,13 +333,40 @@ def _process_item(it: ArchiveItem, config: Config, logger: ProgressLogger,
                 result.failed += 1
                 result.failures.append((name, "write-failed", str(zpath)))
 
+        # ---- 直下のファイル群 ----
         if cr.files:
-            zpath = unique_path(out_dir, group_zip_name(it.path), used_names)
-            if create_group_zip(cr.files, zpath, config, logger):
-                created.append(zpath)
+            if fold_target is not None:
+                # 単一フォルダ降下時: アーカイブは解凍せず保持、他は「フォルダ直下.zip」
+                kept: List[Path] = []
+                plain: List[Path] = []
+                for f in cr.files:
+                    if archive_kind(f) is not None:
+                        kept.append(f)
+                    else:
+                        plain.append(f)
+                for k in kept:
+                    zpath = unique_path(out_dir, sanitize_name(k.name), used_names)
+                    try:
+                        shutil.copy2(str(k), str(zpath))
+                        created.append(zpath)
+                        logger.info("%s -> keep archive -> %s", k.name, zpath)
+                    except OSError as exc:
+                        result.failed += 1
+                        result.failures.append((name, "copy-failed", str(exc)))
+                if plain:
+                    zpath = unique_path(out_dir, "フォルダ直下.zip", used_names)
+                    if create_group_zip(plain, zpath, config, logger):
+                        created.append(zpath)
+                    else:
+                        result.failed += 1
+                        result.failures.append((name, "write-failed", str(zpath)))
             else:
-                result.failed += 1
-                result.failures.append((name, "write-failed", str(zpath)))
+                zpath = unique_path(out_dir, group_zip_name(it.path), used_names)
+                if create_group_zip(cr.files, zpath, config, logger):
+                    created.append(zpath)
+                else:
+                    result.failed += 1
+                    result.failures.append((name, "write-failed", str(zpath)))
 
         if created:
             result.success += 1

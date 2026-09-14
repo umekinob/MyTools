@@ -200,6 +200,32 @@ def main(clean: bool = True) -> dict:
                          {"日本語フォルダ/日本語ファイル.txt": "復元される内容",
                           "資料/メモ.txt": "メモ内容"})
 
+    # T24: 単一トップフォルダ → 内部複数フォルダ（パターン2）
+    #      期待: S1.zip, S2.zip, S3.zip
+    _write_zip(IN / "T24_p2.zip",
+               {"D1/S1/a.txt": "a", "D1/S2/b.txt": "b", "D1/S3/c.txt": "c"})
+
+    # T25: 単一トップフォルダ → 内部複数フォルダ＋アーカイブ保持（パターン3）
+    #      期待: S1.zip, S2.zip, arch.zip(保持コピー)
+    arch_tmp = IN / "_arch_tmp"
+    arch_tmp.mkdir(exist_ok=True)
+    _write_zip(arch_tmp / "arch.zip", {"ArchData/data.txt": "arch"})
+    _write_zip(IN / "T25_p3.zip",
+               {"D1/S1/a.txt": "a", "D1/S2/b.txt": "b",
+                "D1/arch.zip": (arch_tmp / "arch.zip").read_bytes()})
+    shutil.rmtree(arch_tmp, ignore_errors=True)
+
+    # T26: 単一トップフォルダが2重 → 内部複数フォルダ（パターン4）
+    #      期待: S1.zip, S2.zip, S3.zip
+    _write_zip(IN / "T26_p4.zip",
+               {"D1/D2/S1/a.txt": "a", "D1/D2/S2/b.txt": "b",
+                "D1/D2/S3/c.txt": "c"})
+
+    # T27: 単一トップフォルダ → 内部複数フォルダ＋直下ファイル群（パターン2'）
+    #      期待: S1.zip, S2.zip, フォルダ直下.zip
+    _write_zip(IN / "T27_p2p.zip",
+               {"D1/S1/a.txt": "a", "D1/S2/b.txt": "b", "D1/top.txt": "top"})
+
     results["seven_zip"] = str(seven) if seven else None
     return results
 
