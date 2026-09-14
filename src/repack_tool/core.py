@@ -14,7 +14,7 @@ from typing import Callable, List, Optional, Set
 
 from .checker import check_archive
 from .classifier import classify, ClassifyResult
-from .config import Config
+from .config import Config, DEFAULT_TEMP_DIR
 from .extractor import Extractor
 from .passwords import PasswordList
 from .paths import long_path, resolve_no_follow
@@ -226,6 +226,18 @@ def _classify_from_names(names: List[str],
     return result
 
 
+def _make_temp_dir(config: Config, logger: ProgressLogger) -> Path:
+    """一時解凍先を作成して返す。指定が無ければプログラム配置場所配下の tmp を使う（Q19改修）。"""
+    root = config.temp_dir or DEFAULT_TEMP_DIR
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        # 作成できない場合は従来どおりOS標準tempへフォールバック
+        logger.warning("一時フォルダを作成できません(%s)。OS標準tempへフォールバック", exc)
+        return Path(tempfile.mkdtemp(prefix="repack_"))
+    return Path(tempfile.mkdtemp(prefix="repack_", dir=str(root)))
+
+
 def _process_item(it: ArchiveItem, config: Config, logger: ProgressLogger,
                   extractor: Extractor, pwlist: PasswordList,
                   output_dir: Path, input_dir: Path, result: RepackResult,
@@ -251,8 +263,8 @@ def _process_item(it: ArchiveItem, config: Config, logger: ProgressLogger,
             skip_fail(result, logger, name, "corrupt", "事前整合性チェック失敗")
             return
 
-    # ---- 一時解凍 ----
-    tmp = Path(tempfile.mkdtemp(prefix="repack_"))
+    # ---- 一時解凍（Q19改修: プログラム配置場所のtmp/ を使う） ----
+    tmp = _make_temp_dir(config, logger)
     try:
         ok, reason, tried = extractor.extract(it.path, it.kind, long_path(tmp),
                                               list(pwlist))

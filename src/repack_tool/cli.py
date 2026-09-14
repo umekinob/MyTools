@@ -42,6 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--flat", action="store_true", help="ミラーを作らない平坦出力")
     p.add_argument("--allow-output-inside-input", action="store_true",
                    help="出力が入力配下にあることを許可")
+    p.add_argument("--temp-dir", default=None, metavar="PATH",
+                   help="一時解凍先フォルダ（既定: 本プログラム配置場所の tmp/）")
     p.add_argument("--nested-depth", type=int, default=None, choices=range(0, 10),
                    help="入れ子解凍の深さ上限（既定: 3）")
     p.add_argument("--max-extract-mb", type=int, default=None, help="解凍サイズ上限MB(0=無制限)")
@@ -74,6 +76,7 @@ def _merge(args: argparse.Namespace, cfg: "Config") -> "Config":
         "password_list": ("password_list", lambda v: Path(v) if v else None),
         "seven_zip_path": ("seven_zip_path", lambda v: Path(v) if v else None),
         "log_file": ("log_file", lambda v: Path(v) if v else None),
+        "temp_dir": ("temp_dir", lambda v: Path(v) if v else None),
         "encoding": ("encoding", None), "exclude_pattern": ("exclude_pattern", None),
         "prefer_7z": ("prefer_7z", None),
     }

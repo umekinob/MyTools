@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set
 
-from .config import ARCHIVE_SUFFIXES, SPLIT_RE, Config
+from .config import ARCHIVE_SUFFIXES, SPLIT_RE, Config, DEFAULT_TEMP_DIR
 from .paths import resolve_no_follow
 
 
@@ -114,7 +114,11 @@ def scan(input_dir: Path, output_dir: Path, config: Config) -> List[ArchiveItem]
         if not p.is_file():
             continue
         rp = resolve_no_follow(p)
-        if exclude_out and _is_within(rp, out):
+        if exclude_out and is_within(rp, out):
+            continue
+        # 一時解凍先（既定DEFAULT_TEMP_DIR or config.temp_dir）配下はスキャン除外（Q19改修）
+        temp_root = resolve_no_follow(config.temp_dir if config.temp_dir else DEFAULT_TEMP_DIR)
+        if is_within(rp, temp_root):
             continue
         kind = archive_kind(p)
         if kind is None:

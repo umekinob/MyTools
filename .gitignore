@@ -5,6 +5,7 @@ __pycache__/
 tests/data/in/
 tests/data/out*/
 result/
+tmp/
 *.log
 # 実在の秘密・分割・rarはコミットしない
 passwords.txt

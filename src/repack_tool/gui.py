@@ -35,11 +35,13 @@ class GuiApp(tk.Tk):
         self.var_input = tk.StringVar()
         self.var_output = tk.StringVar()
         self.var_dict = tk.StringVar()
+        self.var_temp = tk.StringVar()
         self._row(frm, 0, "入力フォルダ", self.var_input, self._pick_input)
         self._row(frm, 1, "出力フォルダ", self.var_output, self._pick_output)
         self._row(frm, 2, "辞書(任意)", self.var_dict, self._pick_dict)
+        self._row(frm, 3, "一時フォルダ(任意)", self.var_temp, self._pick_temp)
         ttk.Label(frm, text="※ 入力へドラッグ&ドロップ可（tkinterdnd2導入時）").grid(
-            row=3, column=0, columnspan=3, sticky=tk.W)
+            row=4, column=0, columnspan=3, sticky=tk.W)
 
         # ---- オプション ----
         opt = ttk.LabelFrame(self, text="オプション", padding=8)
@@ -103,6 +105,14 @@ class GuiApp(tk.Tk):
         f = filedialog.askopenfilename(filetypes=[("text", "*.txt"), ("all", "*.*")])
         if f:
             self.var_dict.set(f)
+
+    def _pick_temp(self):
+        initial = self.var_temp.get() or str(Path.home())
+        d = filedialog.askdirectory(
+            title="一時フォルダを選択（無指定なら本プログラムの tmp/）",
+            initialdir=initial)
+        if d:
+            self.var_temp.set(d)
 
     def _enable_dnd(self):
         # tkinterdnd2 があれば入力欄へのDnDを有効化
@@ -175,6 +185,7 @@ class GuiApp(tk.Tk):
             keep_temp=self.var_keeptemp.get(),
             compression_level=int(self.var_level.get()),
             log_level=self.var_loglevel.get(),
+            temp_dir=Path(self.var_temp.get()) if self.var_temp.get() else None,
             log_file=out / f"repack_{ts}.log",
         )
         self._running = True

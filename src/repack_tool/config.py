@@ -13,6 +13,10 @@ ARCHIVE_SUFFIXES: List[str] = [
     ".gz", ".bz2", ".xz",
 ]
 
+# 一時解凍先の既定フォルダ（Q19改修: 本プログラム配置場所配下の tmp/）
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_TEMP_DIR = PROJECT_ROOT / "tmp"
+
 # OSゴミ・隠し(ドット)ファイルは除外（Q45）
 DEFAULT_EXCLUDE_NAMES = {".DS_Store", "Thumbs.db", "desktop.ini", ".git",
                         ".gitignore", ".gitattributes", ".DS_Store"}
@@ -50,6 +54,7 @@ class Config:
     keep_temp: bool = False
     flat: bool = False
     allow_output_inside_input: bool = False
+    temp_dir: Optional[Path] = None  # 未指定ならプログラム配置場所の tmp（Q19改修）
 
     log_file: Optional[Path] = None
     log_level: str = "INFO"             # DEBUG/INFO/WARNING/ERROR
@@ -84,7 +89,7 @@ def from_dict(data: Dict[str, Any]) -> Config:
             cfg.input_dir = Path(value) if value else cfg.input_dir
         elif key == "output":
             cfg.output_dir = Path(value) if value else cfg.output_dir
-        elif key in ("password_list", "log_file", "seven_zip_path"):
+        elif key in ("password_list", "log_file", "seven_zip_path", "temp_dir"):
             setattr(cfg, key, Path(value) if value else None)
         else:
             setattr(cfg, key, value)
