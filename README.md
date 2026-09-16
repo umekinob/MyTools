@@ -27,7 +27,7 @@ python -m repack_tool --input ./in --output ./out --recursive \
 | `--password-list` | なし | UTF-8 1行1件、`#` はコメント、上限1万行 |
 | `--compression-level 0-9` | 9 | zip圧縮レベル（最高圧縮） |
 | `--seven-zip-path/--prefer-7z` | 自動検出/lib優先 | 7z.exe 指定・優先切替 |
-| `--dry-run/--keep-temp/--flat` | OFF | 予測のみ/一時保持/平坦出力 |
+| `--dry-run/--keep-temp/--flat` | OFF | 作成予定を表示（書込なし）/一時保持/平坦出力 |
 | `--allow-output-inside-input` | OFF | 出力が入力配下のとき明示許可 |
 | `--nested-depth 0-9` | 3 | 入れ子解凍上限 |
 | `--max-extract-mb / --max-compression-ratio` | 0=OFF | Zip爆弾警告用 |
@@ -61,6 +61,21 @@ CLI引数が TOML より優先されます。
 - 日本語・ロングパス対応。タイムスタンプは保持しない（1980以前は1980-01-01に丸め）
 - 機密らしき名前は警告のみ（`--exclude-pattern` で除外可）
 - 再現性: 走査順は相対パス昇順、辞書は行順厳守、ログにパスワードは出さない
+
+## dry-run（作成予定の確認）
+
+`--dry-run` を付けると、**実際のzipは作成せず**に「作成予定zip一覧」をログ出力します。
+予測は実処理と同一経路（解凍→単一フォルダ降下→分類→命名）で行うため、本実行の結果と一致します。
+
+```bash
+$env:PYTHONPATH = "src"
+python -m repack_tool --input ./in --output ./out --dry-run
+# ログ例: DRY-RUN src.zip -> 予定zip: src/01.zip, src/02.zip
+```
+
+- 解凍は一時領域（既定 `tmp/`、`--temp-dir` で変更可）で実施し、処理後に削除します
+- 出力フォルダへの書き込み（zip作成・コピー・フォルダ作成）は行いません
+- 空フォルダskip・降下時のアーカイブ保持・「フォルダ直下.zip」も本実行と同じ判定になります
 
 ## 検証手順
 
