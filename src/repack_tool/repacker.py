@@ -40,9 +40,14 @@ def group_zip_name(archive: Path) -> str:
     return sanitize_name(archive_stem(archive)) + "_files.zip"
 
 
-def unique_path(target_dir: Path, desired: str, used: Set[str]) -> Path:
-    """同名があれば _001, _002... を付けて別名保存（Q11/Q41）。used は同一実行内の衝突回避用。"""
-    target_dir.mkdir(parents=True, exist_ok=True)
+def unique_path(target_dir: Path, desired: str, used: Set[str],
+                create: bool = True) -> Path:
+    """同名があれば _001, _002... を付けて別名保存（Q11/Q41）。used は同一実行内の衝突回避用。
+
+    create=False のときはディレクトリを作成しない（dry-run 用）。
+    """
+    if create:
+        target_dir.mkdir(parents=True, exist_ok=True)
     base = desired
     if desired.lower().endswith(".zip"):
         base = desired[:-4]
