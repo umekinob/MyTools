@@ -4,11 +4,20 @@
     $env:PYTHONPATH = "src;tests"
     python tests/shoot_manual.py
 
-docs/img/ に出力される画像:
+docs/img/ に出力される画像（マニュアルが参照する採用画像のみ）:
     01_startup.png     起動直後（未設定）
     02_configured.png  入力・出力・辞書設定済み
-    run_00..09.png     実行中の連写（最良の1枚を後で 03_running.png に採用）
     05_done_dialog.png 完了ダイアログ
+    run_01.png         実行中（採用済み: マニュアル §4/§6 が参照）
+    run_03.png         実行中（採用済み: マニュアル §6 が参照）
+    10_suite_top.png       スイートTOP（機能一覧）
+    11_asset_startup.png   asset-tool 起動直後
+    12_asset_configured.png asset-tool 起点・出力フォルダ設定済み
+
+result/img_run/ に出力される画像（作業用・git 管理外）:
+    run_00..09.png     実行中の連写。最良の1枚を docs/img/run_XX.png として採用する
+                       （採用したら本スクリプトの出力先を docs/img へ切り替えて再撮影するか、
+                         result/img_run/ からコピーしてマニュアルの参照を更新する）
 
 結果サマリは shoot_result.txt（UTF-8）に書き出す。
 """
@@ -29,6 +38,8 @@ sys.path.insert(0, str(ROOT / "tests"))
 from make_samples import main as make_samples_main  # noqa: E402
 
 IMG_DIR = ROOT / "docs" / "img"
+# 連写素材は作業用フォルダ（docs/img はマニュアル参照の採用画像のみを追跡する）
+RUN_DIR = ROOT / "result" / "img_run"
 RESULT_TXT = ROOT / "shoot_result.txt"
 
 # ---- Win32 定数 ----
@@ -190,6 +201,35 @@ def try_capture_dialog(path: Path) -> bool:
 
 
 
+def shoot_suite() -> None:
+    """スイートTOP・asset画面のスナップショット（Phase 4・GUIマニュアル追補用）。"""
+    from suite_top.gui_top import SuiteApp
+    from asset_tool.gui import AssetApp
+
+    top = SuiteApp()
+    top.geometry("420x260+40+40")
+    top.attributes("-topmost", True)
+    top.update()
+    top.update()
+    ok = capture_tk_window(top, IMG_DIR / "10_suite_top.png")
+    _log(f"10_suite_top={ok}")
+    top.destroy()
+
+    app = AssetApp()
+    app.geometry("760x600+60+60")
+    app.attributes("-topmost", True)
+    app.update()
+    app.update()
+    ok = capture_tk_window(app, IMG_DIR / "11_asset_startup.png")
+    _log(f"11_asset_startup={ok}")
+    app.var_input.set(str(ROOT / "tests" / "data" / "in"))
+    app.var_output.set(str(ROOT / "result" / "shot_out"))
+    app.update()
+    ok = capture_tk_window(app, IMG_DIR / "12_asset_configured.png")
+    _log(f"12_asset_configured={ok}")
+    app.destroy()
+
+
 def main() -> None:
     make_samples_main(clean=True)
     # 撮影用出力は毎回クリーンに（出力名に連番 _00N が写らないように初回状態で撮る）
@@ -214,8 +254,8 @@ def main() -> None:
     ok2 = capture_tk_window(app, IMG_DIR / "02_configured.png")
     _log(f"02_configured={ok2}")
 
-    # 3) 実行中の連写（後で最良の1枚を 03_running.png に採用）
-    run_shots = [IMG_DIR / f"run_{i:02d}.png" for i in range(10)]
+    # 3) 実行中の連写（作業用フォルダへ。最良の1枚を docs/img/run_XX.png として採用）
+    run_shots = [RUN_DIR / f"run_{i:02d}.png" for i in range(10)]
     for i, p in enumerate(run_shots):
         app.after(500 + i * 700, lambda p=p: capture_tk_window(app, p))
 
@@ -242,13 +282,19 @@ def main() -> None:
     app.after(10000, app.destroy)
     app.mainloop()
 
-    # 結果サマリ出力
+    # 5) スイートTOP・asset画面（Phase 4 追加）
+    try:
+        shoot_suite()
+    except Exception as exc:  # noqa: BLE001
+        _log(f"suite shots failed: {exc}")
+
+    # 結果サマリ出力（採用画像＝docs/img、連写素材＝result/img_run）
     lines = ["shot results:"]
-    for p in sorted(IMG_DIR.glob("*.png")):
+    for p in sorted(IMG_DIR.glob("*.png")) + sorted(RUN_DIR.glob("*.png")):
         head = p.read_bytes()[:33]
         w = int.from_bytes(head[16:20], "big")
         h = int.from_bytes(head[20:24], "big")
-        lines.append(f"  {p.name}  {w}x{h}  {p.stat().st_size}B")
+        lines.append(f"  {p.parent.name}/{p.name}  {w}x{h}  {p.stat().st_size}B")
     lines += _notes
     RESULT_TXT.write_text("\n".join(lines) + "\n", encoding="utf-8")
 

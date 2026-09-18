@@ -4,9 +4,19 @@ __pycache__/
 # 生成データ・実行結果（再生成可能・環境依存）
 tests/data/in/
 tests/data/out*/
+tests/data/asset_in/
+tests/data/asset_out*/
 result/
 tmp/
 *.log
+# 撮影スクリプトの結果サマリ（再生成可能）
+shoot_result.txt
+# 手動検証スクリプトの結果（再生成可能）
+verify_result.txt
+# 撮影の連写素材（採用画像のみ docs/img で追跡。作業用は result/img_run/ へ）
+docs/img/run_[0-9][0-9].png
+!docs/img/run_01.png
+!docs/img/run_03.png
 # 実在の秘密・分割・rarはコミットしない
 passwords.txt
 dict.txt
