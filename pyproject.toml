@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "repack-tool"
+name = "mytools"
 version = "0.1.0"
-description = "圧縮ファイル解凍→フォルダ毎Zip再圧縮ツール"
+description = "作業効率化ツール群（解凍→Zip再圧縮ツール等）"
 requires-python = ">=3.11"
 dependencies = []
 
