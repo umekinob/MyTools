@@ -118,7 +118,10 @@ def run_pytest_files() -> list:
            "PYTHONPATH": os.pathsep.join([str(SRC), str(ROOT / "tests")]),
            "PYTHONIOENCODING": "utf-8"}
     for name in ["test_scanner.py", "test_passwords.py", "test_paths.py",
-                 "test_integration.py"]:
+                 "test_integration.py", "test_names.py", "test_dry_run.py",
+                 "test_scan_parity.py", "test_suite_top.py",
+                 "test_asset_core.py", "test_asset_output.py",
+                 "test_asset_cli.py", "test_asset_integration.py"]:
         p = subprocess.run([sys.executable, str(ROOT / "tests" / name)],
                            capture_output=True, cwd=str(ROOT), env=env,
                            encoding="utf-8", errors="replace")

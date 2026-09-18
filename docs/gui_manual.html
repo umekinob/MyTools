@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>repack-tool GUI 利用マニュアル</title>
+<title>MyTools GUI 利用マニュアル</title>
 <style>
   :root { --ac:#1a5fb4; --bg:#f6f8fa; --line:#d0d7de; }
   * { box-sizing:border-box; }
@@ -43,8 +43,8 @@
 </head>
 <body>
 <header>
-  <h1>repack-tool GUI 利用マニュアル</h1>
-  <p>圧縮ファイル（7z / zip / rar / tar.gz など）を一括解凍し、フォルダ単位で zip に再圧縮するツール</p>
+  <h1>MyTools GUI 利用マニュアル</h1>
+  <p>作業効率化ツール群 — 解凍→フォルダ毎zip再圧縮（repack）／資産一覧出力（asset）</p>
 </header>
 <main>
 
@@ -59,6 +59,8 @@
     <li><a href="#sec6">実行結果の読み方</a></li>
     <li><a href="#sec7">よくある質問（FAQ）</a></li>
     <li><a href="#sec8">トラブルシューティング</a></li>
+    <li><a href="#sec9">スイートTOP（作業効率化ツール）</a></li>
+    <li><a href="#sec10">資産一覧出力（asset-tool）</a></li>
   </ol>
 </nav>
 
@@ -209,7 +211,78 @@ python -m repack_tool.gui</code></pre>
 
 <div class="warn">⚠️ 出力 zip は暗号化されません。機微情報を含むファイルを扱う場合は、出力先フォルダのアクセス権限に注意してください。</div>
 
-<footer>repack-tool GUI 利用マニュアル　—　2026/09 版　|　snapshots: docs/img/　|　CLI の詳細は README.md を参照</footer>
+<h2 id="sec9"><span class="no">9</span>スイートTOP（作業効率化ツール）</h2>
+<p>複数のツールをまとめて起動できる「スイートTOP」画面です。機能ごとに窓が分かれるため、
+複数のツールを同時に開いて作業できます。</p>
+<figure>
+  <img src="img/10_suite_top.png" alt="スイートTOP画面">
+  <figcaption>スイートTOP画面（機能一覧＋「開く」ボタン）</figcaption>
+</figure>
+<h3>起動方法</h3>
+<pre><code>cd C:\Dドライブ\AI_Models\MyTools
+$env:PYTHONPATH = "src"
+python -m suite_top</code></pre>
+<h3>使い方</h3>
+<div class="step"><div class="num">1</div><div>
+<b>機能を選ぶ</b> —「解凍→フォルダ毎zip（repack）」または「資産一覧出力（asset）」の
+<b>開く</b> ボタンを押します。対応する機能の画面が新しい窓で開きます。
+</div></div>
+<div class="step"><div class="num">2</div><div>
+<b>各画面で作業する</b> — TOP は開いたままなので、必要に応じて別の機能も開けます。
+</div></div>
+<div class="step"><div class="num">3</div><div>
+<b>終了する</b> — TOP を閉じると、開いていた機能の窓も一緒に終了します（確認ダイアログが出ます）。
+機能の窓だけを閉じても TOP は残ります。
+</div></div>
+<div class="note">📌 同じ機能の窓が既に開いている場合は、新しい窓を作らず「起動済み」と案内します
+（同一機能の窓は 1 つだけ・Q48=A）。</div>
+<div class="tip">💡「ヘルプ」ボタンで本マニュアル（<code>docs/gui_manual.html</code>）を既定のブラウザで開けます。</div>
+
+<h2 id="sec10"><span class="no">10</span>資産一覧出力（asset-tool）</h2>
+<p>指定したフォルダを<b>読み取り専用</b>で走査し、<b>全階層のフォルダを 1 フォルダ 1 行</b>として
+11 列の資産台帳（CSV / HTML / Markdown）を出力するツールです。既存データは一切変更しません。</p>
+<figure>
+  <img src="img/11_asset_startup.png" alt="資産一覧出力の起動直後">
+  <figcaption>asset-tool 起動直後</figcaption>
+</figure>
+<figure>
+  <img src="img/12_asset_configured.png" alt="資産一覧出力の設定済み">
+  <figcaption>起点・出力フォルダ設定済み</figcaption>
+</figure>
+<h3>起動方法</h3>
+<pre><code>cd C:\Dドライブ\AI_Models\MyTools
+$env:PYTHONPATH = "src"
+python -m asset_tool.gui        # GUI
+python -m asset_tool --input D:\資産 --output D:\資産台帳   # CLI</code></pre>
+<h3>画面の見方</h3>
+<table>
+  <tr><th>項目</th><th>内容</th></tr>
+  <tr><td>起点フォルダ</td><td>走査を開始するフォルダ（読み取り専用）</td></tr>
+  <tr><td>出力フォルダ</td><td>台帳の保存先。<b>フォルダ</b>を指定します（ファイル名は自動: <code>asset_YYYYMMDD.csv</code>・同日は <code>_01</code> 連番）</td></tr>
+  <tr><td>形式</td><td><code>csv</code>（Excel 向け・UTF-8 BOM/CRLF）／<code>html</code>（ブラウザ向け）／<code>md</code>（Markdown）</td></tr>
+  <tr><td>ソート／順序</td><td><code>name</code>（相対パス順）・<code>size</code>・<code>mtime</code>・<code>files</code>（後の3つは<b>配下基準</b>）。順序は昇順/降順</td></tr>
+  <tr><td>全階層</td><td>ON=全階層を 1 フォルダ 1 行／OFF=起点直下のフォルダのみ</td></tr>
+  <tr><td>SHA-256</td><td>詳細一覧にファイルのハッシュを追加（重複確認の材料）</td></tr>
+  <tr><td>詳細一覧</td><td>ファイル単位の一覧を <code>asset_YYYYMMDD_detail.csv</code> として別出力</td></tr>
+  <tr><td>DRY-RUN</td><td>走査と集計のみ行い、ファイルを出力しません（要約をログに表示）</td></tr>
+  <tr><td>除外正規表現</td><td>一致した名前のフォルダは、その中身ごと除外されます</td></tr>
+</table>
+<h3>台帳の読み方</h3>
+<table>
+  <tr><th>見え方</th><th>意味</th></tr>
+  <tr><td>ファイル数(直下) == ファイル数(配下) かつ 0 より大きい</td><td>リーフ（実体がここにある。例: タイトル.zip の置いてあるフォルダ）</td></tr>
+  <tr><td>ファイル数(直下) == 0 かつ ファイル数(配下) &gt; 0</td><td>分類フォルダ（下位に実体がある）</td></tr>
+  <tr><td>それ以外（例: 直下1／配下3）</td><td>前提違反（下位階層にも実体がある）の可能性</td></tr>
+  <tr><td>(ルート)</td><td>起点直下のファイル（フォルダに属さないファイル）の受け皿</td></tr>
+  <tr><td>備考: 読取エラーN件</td><td>アクセスできなかったため、そのフォルダの統計値は空欄（継続・終了コード 2）</td></tr>
+  <tr><td>備考: リンクスキップN件</td><td>ジャンクション/シンボリックリンクは追跡せずスキップした</td></tr>
+</table>
+<div class="note">📌 Excel で合計を計算するときは「ファイル数(直下)」「サイズ(直下)byte」列を使ってください
+（配下列は二重計上になるため合計行では空欄です）。</div>
+<div class="tip">💡 性能目安: 10万フォルダ / CSV 10万行を想定しています。走査はファイル数ベースで
+進捗するため、進捗バーは不定表示（伸び続ける形）になります。</div>
+
+<footer>MyTools GUI 利用マニュアル　—　2026/09 版　|　snapshots: docs/img/　|　CLI の詳細は README.md を参照</footer>
 
 </main>
 </body>
